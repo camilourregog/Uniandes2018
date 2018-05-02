@@ -1,0 +1,30 @@
+##Importación datos
+datos<-read.csv("datos.csv",header=T,sep="\t",dec=",")
+evalmensual<-read.csv("evalmensual.csv",header=T,sep=";",dec=",")
+evaldiario<-read.csv("evaldiario.csv",header=T,sep=";",dec=",")
+
+##Clasificación de base inicial (grilla diaria)
+dgrid<-array(0,dim(datos)[1])
+for(i in 1:length(dgrid)){
+  dgrid[i]<-ifelse(length(which(evaldiario$Latitud.Inferior<datos[i,2] & evaldiario$Latitud.Superior>datos[i,2]
+                                & evaldiario$Longitud.Inferior<datos[i,3] & evaldiario$Longitud.Superior>datos[i,3]))==0,
+                   NA,which(evaldiario$Latitud.Inferior<datos[i,2] & evaldiario$Latitud.Superior>datos[i,2]
+                            & evaldiario$Longitud.Inferior<datos[i,3] & evaldiario$Longitud.Superior>datos[i,3]))
+  
+  print(paste0(i,"/",length(dgrid)))
+}
+
+
+##Clasificación de base inicial (grilla mensual)
+mgrid<-array(0,dim(datos)[1])
+for(i in 1:length(mgrid)){
+  mgrid[i]<-ifelse(length(which(evalmensual$Latitud.Inferior<datos[i,2] & evalmensual$Latitud.Superior>datos[i,2]
+                                & evalmensual$Longitud.Inferior<datos[i,3] & evalmensual$Longitud.Superior>datos[i,3]))==0,
+                   NA,which(evalmensual$Latitud.Inferior<datos[i,2] & evalmensual$Latitud.Superior>datos[i,2]
+                            & evalmensual$Longitud.Inferior<datos[i,3] & evalmensual$Longitud.Superior>datos[i,3]))
+  
+  print(paste0(i,"/",length(mgrid)))
+}
+
+datos<-cbind(datos,dgrid,mgrid)
+
