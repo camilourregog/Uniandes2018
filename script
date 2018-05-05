@@ -1,4 +1,5 @@
 
+
 ##Importación datos
 datos<-read.csv("datos.csv",header=T,sep="\t",dec=",")
 evalmensual<-read.csv("evalmensual.csv",header=T,sep=";",dec=",")
@@ -16,7 +17,7 @@ for(i in 1:length(dgrid)){
 }
 
 
-  ##Clasificación de base inicial (grilla mensual)
+##Clasificación de base inicial (grilla mensual)
 mgrid<-array(0,dim(datos)[1])
 for(i in 1:length(mgrid)){
   mgrid[i]<-ifelse(length(which(evalmensual$Latitud.Inferior<datos[i,2] & evalmensual$Latitud.Superior>datos[i,2]
@@ -30,3 +31,55 @@ for(i in 1:length(mgrid)){
 dgrid<-as.data.frame(dgrid)
 mgrid<-as.data.frame(mgrid)
 datos<-cbind(datos,dgrid,mgrid)
+
+
+##base semaforos bogota para conteo semaforos por grillas mensual y diaria
+semaforos<-read.csv("semaforos.csv")
+nombres<-names(semaforos)
+nombres[1]="Longitud"
+nombres[2]="Latitud"
+colnames(semaforos)<-nombres
+
+##Clasificación de base semaforos (grilla diaria)
+dgridsem<-array(0,dim(semaforos)[1])
+for(i in 1:length(dgridsem)){
+  dgridsem[i]<-ifelse(length(which(evaldiario$Latitud.Inferior<semaforos[i,2] & evaldiario$Latitud.Superior>semaforos[i,2]
+                                & evaldiario$Longitud.Inferior<semaforos[i,1] & evaldiario$Longitud.Superior>semaforos[i,1]))==0,
+                   NA,which(evaldiario$Latitud.Inferior<semaforos[i,2] & evaldiario$Latitud.Superior>semaforos[i,2]
+                            & evaldiario$Longitud.Inferior<semaforos[i,1] & evaldiario$Longitud.Superior>semaforos[i,1]))
+  
+  print(paste0(i,"/",length(dgridsem)," ","="," ",round(i/length(dgridsem)*100,1),"%"))
+}
+
+
+##Clasificación de base semaforos (grilla mensual)
+mgridsem<-array(0,dim(semaforos)[1])
+for(i in 1:length(mgridsem)){
+  mgridsem[i]<-ifelse(length(which(evalmensual$Latitud.Inferior<semaforos[i,2] & evalmensual$Latitud.Superior>semaforos[i,2]
+                                   & evalmensual$Longitud.Inferior<semaforos[i,1] & evalmensual$Longitud.Superior>semaforos[i,1]))==0,
+                      NA,which(evalmensual$Latitud.Inferior<semaforos[i,2] & evalmensual$Latitud.Superior>semaforos[i,2]
+                               & evalmensual$Longitud.Inferior<semaforos[i,1] & evalmensual$Longitud.Superior>semaforos[i,1]))
+  
+  print(paste0(i,"/",length(mgridsem)," ","="," ",round(i/length(mgridsem)*100,1),"%"))
+}
+
+dgridsem<-as.data.frame(dgridsem)
+mgridsem<-as.data.frame(mgridsem)
+colnames(dgridsem)<-"dgrid"
+colnames(mgridsem)<-"mgrid"
+semaforos<-cbind(semaforos,dgridsem,mgridsem)
+summary(semaforos)
+
+pacman::p_load(dplyr)
+dsem<-count(semaforos,dgrid)
+msem<-count(semaforos,mgrid)
+colnames(dsem)<-c('dgrid','sem_count_d')
+colnames(msem)<-c('mgrid','sem_count_m')
+
+write.csv(dsem,"cont_sem_g_diaria.csv")
+write.csv(msem,"cont_sem_g_mensual.csv")
+
+datos<-left_join(datos,dsem,by="dgrid")
+datos<-left_join(datos,msem,by="mgrid")
+
+write.csv(datos,"base.csv")
