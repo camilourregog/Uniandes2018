@@ -40,6 +40,9 @@ nombres[1]="Longitud"
 nombres[2]="Latitud"
 colnames(semaforos)<-nombres
 
+semaforos$fechaimplementacion<-as.Date(semaforos$fechaimplementacion)
+semaforos<-filter(semaforos,fechaimplementacion<'2015-01-01')
+
 ##Clasificación de base semaforos (grilla diaria)
 dgridsem<-array(0,dim(semaforos)[1])
 for(i in 1:length(dgridsem)){
