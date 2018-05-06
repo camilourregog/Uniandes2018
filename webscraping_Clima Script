@@ -19,6 +19,7 @@ climabog_data[[i]]<- html_table(climabog)
 
 }
 
+## Converting list to dataframe
 pacman::p_load(stringi,data.table)
 Res<-matrix(NA,396,33)
 
@@ -48,6 +49,8 @@ colnames(clima)<-c('DiaMes','T_Med','T_Max','T_Min','Pres_Atm','Hum_Rel_Med','Pr
                    'Vis_Med','Vel_Med_Viento','Vel_Max_S_Viento','Vel_Max_Raf_Viento',
                    'Ind_Lluvia','Ind_Nieve','Ind_Tormenta','Ind_Niebla')
 
+
+## Cleaning data
 
 
 delete<-which(stri_length(clima$DiaMes)>2|stri_length(clima$DiaMes)==0)
