@@ -86,3 +86,18 @@ datos<-left_join(datos,dsem,by="dgrid")
 datos<-left_join(datos,msem,by="mgrid")
 
 write.csv(datos,"base.csv")
+
+
+##Variables Estacionalidad
+pacman::p_load(DescTools)
+datos<-read.csv("base.csv")
+datos$Fecha<-as.Date(as.character(datos$Fecha),"%Y-%m-%d")
+str(datos)
+
+datos$month<-format(datos$Fecha,'%b')
+datos$dayofweek<-format(datos$Fecha,'%a')
+
+write.csv(datos,"base.csv")
+
+
+
