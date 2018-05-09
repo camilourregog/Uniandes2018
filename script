@@ -79,13 +79,13 @@ msem<-count(semaforos,mgrid)
 colnames(dsem)<-c('dgrid','sem_count_d')
 colnames(msem)<-c('mgrid','sem_count_m')
 
-write.csv(dsem,"cont_sem_g_diaria.csv")
-write.csv(msem,"cont_sem_g_mensual.csv")
+write.csv(dsem,"cont_sem_g_diaria.csv",row.names = F)
+write.csv(msem,"cont_sem_g_mensual.csv",row.names = F)
 
 datos<-left_join(datos,dsem,by="dgrid")
 datos<-left_join(datos,msem,by="mgrid")
 
-write.csv(datos,"base.csv")
+write.csv(datos,"base.csv",row.names = F)
 
 
 ##Variables Estacionalidad
@@ -97,7 +97,7 @@ str(datos)
 datos$month<-format(datos$Fecha,'%b')
 datos$dayofweek<-format(datos$Fecha,'%a')
 
-write.csv(datos,"base.csv")
+write.csv(datos,"base.csv",row.names = F)
 
 
 
