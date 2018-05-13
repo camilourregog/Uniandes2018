@@ -1,5 +1,3 @@
-
-
 ##Importación datos
 datos<-read.csv("datos.csv",header=T,sep="\t",dec=",")
 evalmensual<-read.csv("evalmensual.csv",header=T,sep=";",dec=",")
@@ -33,13 +31,111 @@ mgrid<-as.data.frame(mgrid)
 datos<-cbind(datos,dgrid,mgrid)
 
 
+## Base por grilla y día (mensual) - variable respuesta: # de accidentes
+pacman::p_load(plyr)
+basetr<-count(datos,c('ID','Fecha','mgrid'))
+Month_grid<-count(basetr[,c(1:3)],c('mgrid','Fecha'))
+sum(na.omit(Month_grid$freq))
+nomMG<-names(Month_grid)
+nomMG[3]<-"accidentes"
+colnames(Month_grid)<-nomMG
+Month_grid$Fecha<-as.Date(as.character(Month_grid$Fecha),"%d/%m/%Y")
+
+## Base por grilla y día (diaria) - variable respuesta: # de accidentes
+pacman::p_load(plyr)
+basetr<-count(datos,c('ID','Fecha','dgrid'))
+Day_grid<-count(basetr[,c(1:3)],c('dgrid','Fecha'))
+sum(na.omit(Day_grid$freq))
+nomMG<-names(Day_grid)
+nomMG[3]<-"accidentes"
+colnames(Day_grid)<-nomMG
+Day_grid$Fecha<-as.Date(as.character(Day_grid$Fecha),"%d/%m/%Y")
+
+##Variables Estacionalidad
+estacionalidad<-read.csv("estacionalidad.csv")
+estacionalidad$Fecha<-as.Date(as.character(estacionalidad$Fecha),"%m/%d/%y")
+Month_grid<-left_join(Month_grid,estacionalidad,by="Fecha")
+Day_grid<-left_join(Day_grid,estacionalidad,by="Fecha")
+
+
+###Variables de clima
+pacman::p_load(rvest)
+
+##Inicialization
+climabog<-list()
+climabog_data<-list()
+
+for (i in 1:12){
+  #Specifying the url for desired website to be scrapped
+  url <- paste0('https://www.tutiempo.net/clima/',ifelse(i<10,paste0(0,i),i),'-2014/ws-802220.html')
+  #Reading the HTML code from the website
+  webpage <- read_html(url)
+  
+  #Using CSS selectors to scrap the stores names and addresses 
+  climabog <- html_nodes(webpage,'.mensuales')
+  
+  
+  #Converting the html data to text
+  climabog_data[[i]]<- html_table(climabog)
+  
+}
+
+pacman::p_load(stringi,data.table)
+Res<-matrix(NA,396,33)
+
+month<-list()
+for(i in 1:12){
+  for(j in 1:length(climabog_data[[i]])){
+    if(is.null(climabog_data[[i]][[j]])==FALSE){
+      Res <- data.frame(stri_list2matrix(climabog_data[[i]][[j]]))
+    }}
+  month[[i]]<-rbind(Res)
+  Res<-list()
+}
+
+Res2<-matrix(NA,396,33)
+clima<-as.data.frame(matrix(0,0,15))
+colnames(clima)<-c('X1','X2','X3','X4','X5','X6','X7','X8','X9','X10','X11','X12',
+                   'X13','X14','X15')
+for(i in 1:length(month)){
+  
+  Res2 <- data.frame(stri_list2matrix(month[[i]]))
+  
+  
+  clima<-rbind(clima,Res2)
+}
+
+colnames(clima)<-c('DiaMes','T_Med','T_Max','T_Min','Pres_Atm','Hum_Rel_Med','Prec_Tot',
+                   'Vis_Med','Vel_Med_Viento','Vel_Max_S_Viento','Vel_Max_Raf_Viento',
+                   'Ind_Lluvia','Ind_Nieve','Ind_Tormenta','Ind_Niebla')
+
+
+
+delete<-which(stri_length(clima$DiaMes)>2|stri_length(clima$DiaMes)==0)
+clima<-clima[-delete,]
+for(i in 1:11){clima[,i]<-as.numeric(as.character(clima[,i]))}
+clima$Ind_Lluvia<-ifelse(clima$Ind_Lluvia=="o",1,0)
+clima$Ind_Nieve<-ifelse(clima$Ind_Nieve=="o",1,0)
+clima$Ind_Tormenta<-ifelse(clima$Ind_Tormenta=="o",1,0)
+clima$Ind_Niebla<-ifelse(clima$Ind_Niebla=="o",1,0)
+
+clima$Fecha<-as.Date(seq(1,365,1),origin = '2013-12-31')
+
+
+
+pacman::p_load(dplyr)
+Month_grid<-left_join(Month_grid,clima,by="Fecha")
+Day_grid<-left_join(Day_grid,clima,by="Fecha")
+
+#write.csv(datos,"base.csv",row.names = F)
+
+
 ##base semaforos bogota para conteo semaforos por grillas mensual y diaria
 semaforos<-read.csv("semaforos.csv")
 nombres<-names(semaforos)
 nombres[1]="Longitud"
 nombres[2]="Latitud"
 colnames(semaforos)<-nombres
-
 semaforos$fechaimplementacion<-as.Date(semaforos$fechaimplementacion)
 semaforos<-filter(semaforos,fechaimplementacion<'2015-01-01')
 
@@ -47,9 +143,9 @@ semaforos<-filter(semaforos,fechaimplementacion<'2015-01-01')
 dgridsem<-array(0,dim(semaforos)[1])
 for(i in 1:length(dgridsem)){
   dgridsem[i]<-ifelse(length(which(evaldiario$Latitud.Inferior<semaforos[i,2] & evaldiario$Latitud.Superior>semaforos[i,2]
-                                & evaldiario$Longitud.Inferior<semaforos[i,1] & evaldiario$Longitud.Superior>semaforos[i,1]))==0,
-                   NA,which(evaldiario$Latitud.Inferior<semaforos[i,2] & evaldiario$Latitud.Superior>semaforos[i,2]
-                            & evaldiario$Longitud.Inferior<semaforos[i,1] & evaldiario$Longitud.Superior>semaforos[i,1]))
+                                   & evaldiario$Longitud.Inferior<semaforos[i,1] & evaldiario$Longitud.Superior>semaforos[i,1]))==0,
+                      NA,which(evaldiario$Latitud.Inferior<semaforos[i,2] & evaldiario$Latitud.Superior>semaforos[i,2]
+                               & evaldiario$Longitud.Inferior<semaforos[i,1] & evaldiario$Longitud.Superior>semaforos[i,1]))
   
   print(paste0(i,"/",length(dgridsem)," ","="," ",round(i/length(dgridsem)*100,1),"%"))
 }
@@ -74,30 +170,240 @@ semaforos<-cbind(semaforos,dgridsem,mgridsem)
 summary(semaforos)
 
 pacman::p_load(dplyr)
-dsem<-count(semaforos,dgrid)
-msem<-count(semaforos,mgrid)
-colnames(dsem)<-c('dgrid','sem_count_d')
-colnames(msem)<-c('mgrid','sem_count_m')
+dsem<-count(semaforos,'dgrid')
+msem<-count(semaforos,'mgrid')
 
-write.csv(dsem,"cont_sem_g_diaria.csv",row.names = F)
-write.csv(msem,"cont_sem_g_mensual.csv",row.names = F)
+colnames(dsem)<-c('dgrid','semaf_count_d')
+colnames(msem)<-c('mgrid','semaf_count_m')
 
-datos<-left_join(datos,dsem,by="dgrid")
-datos<-left_join(datos,msem,by="mgrid")
+#write.csv(dsem,"cont_sem_g_diaria.csv")
+#write.csv(msem,"cont_sem_g_mensual.csv")
 
-write.csv(datos,"base.csv",row.names = F)
+dsem<-dsem[-which(is.na(dsem$dgrid==T)),]
+msem<-msem[-which(is.na(msem$mgrid==T)),]
+
+Day_grid<-left_join(Day_grid,dsem,by="dgrid")
+Month_grid<-left_join(Month_grid,msem,by="mgrid")
 
 
-##Variables Estacionalidad
-pacman::p_load(DescTools)
-datos<-read.csv("base.csv")
-datos$Fecha<-as.Date(as.character(datos$Fecha),"%Y-%m-%d")
-str(datos)
+##conteo colegios
+colofic<-read.csv("colegiosoficiales.csv", dec=",")
+colofic<-colofic[,c(2,7,33,34)]
+colpriv<-read.csv("colegiosprivados.csv", dec=",")
+colpriv<-colpriv[,c(2,5,26,27)]
+colegios<-rbind(colofic,colpriv)
 
-datos$month<-format(datos$Fecha,'%b')
-datos$dayofweek<-format(datos$Fecha,'%a')
+##Clasificación de base colegios (grilla diaria)
+dgridcol<-array(0,dim(colegios)[1])
+for(i in 1:length(dgridcol)){
+  dgridcol[i]<-ifelse(length(which(evaldiario$Latitud.Inferior<colegios[i,4] & evaldiario$Latitud.Superior>colegios[i,4]
+                                   & evaldiario$Longitud.Inferior<colegios[i,3] & evaldiario$Longitud.Superior>colegios[i,3]))==0,
+                      NA,which(evaldiario$Latitud.Inferior<colegios[i,4] & evaldiario$Latitud.Superior>colegios[i,4]
+                               & evaldiario$Longitud.Inferior<colegios[i,3] & evaldiario$Longitud.Superior>colegios[i,3]))
+  
+  print(paste0(i,"/",length(dgridcol)," ","="," ",round(i/length(dgridcol)*100,1),"%"))
+}
 
-write.csv(datos,"base.csv",row.names = F)
 
+##Clasificación de base colegios (grilla mensual)
+mgridcol<-array(0,dim(colegios)[1])
+for(i in 1:length(mgridcol)){
+  mgridcol[i]<-ifelse(length(which(evalmensual$Latitud.Inferior<colegios[i,4] & evalmensual$Latitud.Superior>colegios[i,4]
+                                   & evalmensual$Longitud.Inferior<colegios[i,3] & evalmensual$Longitud.Superior>colegios[i,3]))==0,
+                      NA,which(evalmensual$Latitud.Inferior<colegios[i,4] & evalmensual$Latitud.Superior>colegios[i,4]
+                               & evalmensual$Longitud.Inferior<colegios[i,3] & evalmensual$Longitud.Superior>colegios[i,3]))
+  
+  print(paste0(i,"/",length(mgridcol)," ","="," ",round(i/length(mgridcol)*100,1),"%"))
+}
+
+dgridcol<-as.data.frame(dgridcol)
+mgridcol<-as.data.frame(mgridcol)
+colnames(dgridcol)<-"dgrid"
+colnames(mgridcol)<-"mgrid"
+colegios<-cbind(colegios,dgridcol,mgridcol)
+summary(colegios)
+
+pacman::p_load(dplyr)
+dcolegios<-count(colegios,'dgrid')
+mcolegios<-count(colegios,'mgrid')
+
+colnames(dcolegios)<-c('dgrid','colegios_count_d')
+colnames(mcolegios)<-c('mgrid','colegios_count_m')
+
+dcolegios<-dcolegios[-which(is.na(dcolegios$dgrid==T)),]
+mcolegios<-mcolegios[-which(is.na(mcolegios$mgrid==T)),]
+
+Month_grid<-left_join(Month_grid,mcolegios,by="mgrid")
+Day_grid<-left_join(Day_grid,dcolegios,by="dgrid")
+
+
+##conteo paraderos sitp
+paraderos<-read.csv("paraderositp.csv", dec=",")
+paraderos<-paraderos[,c(2,5,6)]
+
+
+##Clasificación de base paraderos (grilla diaria)
+dgridpar<-array(0,dim(paraderos)[1])
+for(i in 1:length(dgridpar)){
+  dgridpar[i]<-ifelse(length(which(evaldiario$Latitud.Inferior<paraderos[i,3] & evaldiario$Latitud.Superior>paraderos[i,3]
+                                   & evaldiario$Longitud.Inferior<paraderos[i,2] & evaldiario$Longitud.Superior>paraderos[i,2]))==0,
+                      NA,which(evaldiario$Latitud.Inferior<paraderos[i,3] & evaldiario$Latitud.Superior>paraderos[i,3]
+                               & evaldiario$Longitud.Inferior<paraderos[i,2] & evaldiario$Longitud.Superior>paraderos[i,2]))
+  
+  print(paste0(i,"/",length(dgridpar)," ","="," ",round(i/length(dgridpar)*100,1),"%"))
+}
+
+
+##Clasificación de base paraderos (grilla mensual)
+mgridpar<-array(0,dim(paraderos)[1])
+for(i in 1:length(mgridpar)){
+  mgridpar[i]<-ifelse(length(which(evalmensual$Latitud.Inferior<paraderos[i,3] & evalmensual$Latitud.Superior>paraderos[i,3]
+                                   & evalmensual$Longitud.Inferior<paraderos[i,2] & evalmensual$Longitud.Superior>paraderos[i,2]))==0,
+                      NA,which(evalmensual$Latitud.Inferior<paraderos[i,3] & evalmensual$Latitud.Superior>paraderos[i,3]
+                               & evalmensual$Longitud.Inferior<paraderos[i,2] & evalmensual$Longitud.Superior>paraderos[i,2]))
+  
+  print(paste0(i,"/",length(mgridpar)," ","="," ",round(i/length(mgridpar)*100,1),"%"))
+}
+
+dgridpar<-as.data.frame(dgridpar)
+mgridpar<-as.data.frame(mgridpar)
+colnames(dgridpar)<-"dgrid"
+colnames(mgridpar)<-"mgrid"
+paraderos<-cbind(paraderos,dgridpar,mgridpar)
+summary(paraderos)
+
+pacman::p_load(dplyr)
+dparaderos<-count(paraderos,'dgrid')
+mparaderos<-count(paraderos,'mgrid')
+
+colnames(dparaderos)<-c('dgrid','paraderos_count_d')
+colnames(mparaderos)<-c('mgrid','paraderos_count_m')
+
+dparaderos<-dparaderos[-which(is.na(dparaderos$dgrid==T)),]
+mparaderos<-mparaderos[-which(is.na(mparaderos$mgrid==T)),]
+
+Month_grid<-left_join(Month_grid,mparaderos,by="mgrid")
+Day_grid<-left_join(Day_grid,dparaderos,by="dgrid")
+
+
+
+##conteo parques
+parques<-read.csv("parques.csv", dec=",")
+parques<-parques[,c(2,12,13)]
+
+
+##Clasificación de base parques (grilla diaria)
+dgridparq<-array(0,dim(parques)[1])
+for(i in 1:length(dgridparq)){
+  dgridparq[i]<-ifelse(length(which(evaldiario$Latitud.Inferior<parques[i,3] & evaldiario$Latitud.Superior>parques[i,3]
+                                   & evaldiario$Longitud.Inferior<parques[i,2] & evaldiario$Longitud.Superior>parques[i,2]))==0,
+                      NA,which(evaldiario$Latitud.Inferior<parques[i,3] & evaldiario$Latitud.Superior>parques[i,3]
+                               & evaldiario$Longitud.Inferior<parques[i,2] & evaldiario$Longitud.Superior>parques[i,2]))
+  
+  print(paste0(i,"/",length(dgridparq)," ","="," ",round(i/length(dgridparq)*100,1),"%"))
+}
+
+
+##Clasificación de base parques (grilla mensual)
+mgridparq<-array(0,dim(parques)[1])
+for(i in 1:length(mgridparq)){
+  mgridparq[i]<-ifelse(length(which(evalmensual$Latitud.Inferior<parques[i,3] & evalmensual$Latitud.Superior>parques[i,3]
+                                   & evalmensual$Longitud.Inferior<parques[i,2] & evalmensual$Longitud.Superior>parques[i,2]))==0,
+                      NA,which(evalmensual$Latitud.Inferior<parques[i,3] & evalmensual$Latitud.Superior>parques[i,3]
+                               & evalmensual$Longitud.Inferior<parques[i,2] & evalmensual$Longitud.Superior>parques[i,2]))
+  
+  print(paste0(i,"/",length(mgridparq)," ","="," ",round(i/length(mgridparq)*100,1),"%"))
+}
+
+dgridparq<-as.data.frame(dgridparq)
+mgridparq<-as.data.frame(mgridparq)
+colnames(dgridparq)<-"dgrid"
+colnames(mgridparq)<-"mgrid"
+parques<-cbind(parques,dgridparq,mgridparq)
+summary(parques)
+
+pacman::p_load(dplyr)
+dparques<-count(parques,'dgrid')
+mparques<-count(parques,'mgrid')
+
+colnames(dparques)<-c('dgrid','parques_count_d')
+colnames(mparques)<-c('mgrid','parques_count_m')
+
+dparques<-dparques[-which(is.na(dparques$dgrid==T)),]
+mparques<-mparques[-which(is.na(mparques$mgrid==T)),]
+
+Month_grid<-left_join(Month_grid,mparques,by="mgrid")
+Day_grid<-left_join(Day_grid,dparques,by="dgrid")
+
+
+
+
+##conteo estaciones
+estaciones<-read.csv("estaciones.csv", dec=",")
+estaciones<-estaciones[,c(2,8,9)]
+
+
+##Clasificación de base estaciones (grilla diaria)
+dgridest<-array(0,dim(estaciones)[1])
+for(i in 1:length(dgridest)){
+  dgridest[i]<-ifelse(length(which(evaldiario$Latitud.Inferior<estaciones[i,3] & evaldiario$Latitud.Superior>estaciones[i,3]
+                                    & evaldiario$Longitud.Inferior<estaciones[i,2] & evaldiario$Longitud.Superior>estaciones[i,2]))==0,
+                       NA,which(evaldiario$Latitud.Inferior<estaciones[i,3] & evaldiario$Latitud.Superior>estaciones[i,3]
+                                & evaldiario$Longitud.Inferior<estaciones[i,2] & evaldiario$Longitud.Superior>estaciones[i,2]))
+  
+  print(paste0(i,"/",length(dgridest)," ","="," ",round(i/length(dgridest)*100,1),"%"))
+}
+
+
+##Clasificación de base estaciones (grilla mensual)
+mgridest<-array(0,dim(estaciones)[1])
+for(i in 1:length(mgridest)){
+  mgridest[i]<-ifelse(length(which(evalmensual$Latitud.Inferior<estaciones[i,3] & evalmensual$Latitud.Superior>estaciones[i,3]
+                                    & evalmensual$Longitud.Inferior<estaciones[i,2] & evalmensual$Longitud.Superior>estaciones[i,2]))==0,
+                       NA,which(evalmensual$Latitud.Inferior<estaciones[i,3] & evalmensual$Latitud.Superior>estaciones[i,3]
+                                & evalmensual$Longitud.Inferior<estaciones[i,2] & evalmensual$Longitud.Superior>estaciones[i,2]))
+  
+  print(paste0(i,"/",length(mgridest)," ","="," ",round(i/length(mgridest)*100,1),"%"))
+}
+
+dgridest<-as.data.frame(dgridest)
+mgridest<-as.data.frame(mgridest)
+colnames(dgridest)<-"dgrid"
+colnames(mgridest)<-"mgrid"
+estaciones<-cbind(estaciones,dgridest,mgridest)
+summary(estaciones)
+
+pacman::p_load(dplyr)
+destaciones<-count(estaciones,'dgrid')
+mestaciones<-count(estaciones,'mgrid')
+
+colnames(destaciones)<-c('dgrid','estaciones_count_d')
+colnames(mestaciones)<-c('mgrid','estaciones_count_m')
+
+destaciones<-destaciones[-which(is.na(destaciones$dgrid==T)),]
+mestaciones<-mestaciones[-which(is.na(mestaciones$mgrid==T)),]
+
+Month_grid<-left_join(Month_grid,mestaciones,by="mgrid")
+Day_grid<-left_join(Day_grid,destaciones,by="dgrid")
+
+Month_grid<-Month_grid[,-11]
+Day_grid<-Day_grid[,-11]
+
+Month_grid$estaciones_count_m<-ifelse(is.na(Month_grid$estaciones_count_m)==T,
+                                      0,Month_grid$estaciones_count_m)
+
+Day_grid$estaciones_count_d<-ifelse(is.na(Day_grid$estaciones_count_d)==T,
+                                      0,Day_grid$estaciones_count_d)
+
+Month_grid$Vel_Max_Raf_Viento<-ifelse(is.na(Month_grid$Vel_Max_Raf_Viento)==T,
+                                      0,Month_grid$Vel_Max_Raf_Viento)
+
+Day_grid$Vel_Max_Raf_Viento<-ifelse(is.na(Day_grid$Vel_Max_Raf_Viento)==T,
+                                    0,Day_grid$Vel_Max_Raf_Viento)
+
+
+
+write.csv(Day_grid,"basediario.csv",row.names = F)
+write.csv(Month_grid,"basemensual.csv",row.names = F)
 
 
