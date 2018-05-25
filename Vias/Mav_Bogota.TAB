@@ -1,0 +1,10 @@
+!table
+!version 450
+!charset WindowsLatin1
+
+Definition Table
+  Type SHAPEFILE Charset "Neutral"
+  CoordSys Earth Projection 1,104
+  Fields 2
+    PRINCIPAL Char (30) ;
+    ID_UNICO Decimal (7, 0) ;
