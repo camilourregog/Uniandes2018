@@ -1,3 +1,4 @@
+
 ##Importación datos
 datos<-read.csv("datos.csv",header=T,sep="\t",dec=",")
 evalmensual<-read.csv("evalmensual.csv",header=T,sep=";",dec=",")
@@ -454,18 +455,23 @@ colnames(mgridviaprinc)<-"mgrid"
 vias<-cbind(vias,dgridviaprinc,mgridviaprinc)
 summary(vias)
 
-pacman::p_load(dplyr)
-dviaprinc<-count(vias,'dgrid')
-mviaprinc<-count(vias,'mgrid')
+dviaprinc<-count(vias,dgrid~NumVia)
+mviaprinc<-count(vias,mgrid~NumVia)
+dviaprincc<-count(dviaprinc[,-3],"dgrid")
+mviaprincc<-count(mviaprinc[,-3],"mgrid")
 
-colnames(dvias)<-c('dgrid','viasprincipales_count_d')
-colnames(mvias)<-c('mgrid','viasprincipales_count_m')
+colnames(dviaprincc)<-c('dgrid','viasprincipales_count_d')
+colnames(mviaprincc)<-c('mgrid','viasprincipales_count_m')
 
-dvias<-dvias[-which(is.na(dvias$dgrid==T)),]
-mvias<-mvias[-which(is.na(mvias$mgrid==T)),]
+dviaprincc<-dviaprincc[-which(is.na(dviaprincc$dgrid==T)),]
+mviaprincc<-mviaprincc[-which(is.na(mviaprincc$mgrid==T)),]
 
-Month_grid<-left_join(Month_grid,mvias,by="mgrid")
-Day_grid<-left_join(Day_grid,dvias,by="dgrid")
+dviaprincc$dgrid<-as.integer(as.character(dviaprincc$dgrid))
+mviaprincc$mgrid<-as.integer(as.character(mviaprincc$mgrid))
+
+
+Month_grid<-left_join(Month_grid,mviaprincc,by="mgrid")
+Day_grid<-left_join(Day_grid,dviaprincc,by="dgrid")
 
 
 ##conteo vias secundarias
@@ -521,21 +527,76 @@ colnames(mgridviasec)<-"mgrid"
 viasec<-cbind(viasec,dgridviasec,mgridviasec)
 summary(viasec)
 
-pacman::p_load(dplyr)
-dviasec<-count(vias,'dgrid')
-mviasec<-count(vias,'mgrid')
+dviasec<-count(viasec,dgrid~NumVia)
+mviasec<-count(viasec,mgrid~NumVia)
+dviasecc<-count(dviasec[,-3],"dgrid")
+mviasecc<-count(mviasec[,-3],"mgrid")
 
-colnames(dviasec)<-c('dgrid','viassecundarias_count_d')
-colnames(mviasec)<-c('mgrid','viassecundarias_count_m')
+colnames(dviasecc)<-c('dgrid','viassecudarias_count_d')
+colnames(mviasecc)<-c('mgrid','viassecundarias_count_m')
 
-dviasec<-dviasec[-which(is.na(dviasec$dgrid==T)),]
-mviasec<-mviasec[-which(is.na(mviasec$mgrid==T)),]
+dviasecc<-dviasecc[-which(is.na(dviasecc$dgrid==T)),]
+mviasecc<-mviasecc[-which(is.na(mviasecc$mgrid==T)),]
+dviasecc$dgrid<-as.integer(as.character(dviasecc$dgrid))
+mviasecc$mgrid<-as.integer(as.character(mviasecc$mgrid))
 
-Month_grid<-left_join(Month_grid,mviasec,by="mgrid")
-Day_grid<-left_join(Day_grid,dviasec,by="dgrid")
+Month_grid<-left_join(Month_grid,mviasecc,by="mgrid")
+Day_grid<-left_join(Day_grid,dviasecc,by="dgrid")
 
 
+####Info manzanas
+manzanas<-read.csv("manzanas.csv")
 
+##Clasificación de base vias manzanas (grilla diaria)
+dgridmanzanas<-array(0,dim(manzanas)[1])
+for(i in 1:length(dgridmanzanas)){
+  dgridmanzanas[i]<-ifelse(length(which(evaldiario$Latitud.Inferior<manzanas[i,7] & evaldiario$Latitud.Superior>manzanas[i,7]
+                                      & evaldiario$Longitud.Inferior<manzanas[i,6] & evaldiario$Longitud.Superior>manzanas[i,6]))==0,
+                         NA,which(evaldiario$Latitud.Inferior<manzanas[i,7] & evaldiario$Latitud.Superior>manzanas[i,7]
+                                  & evaldiario$Longitud.Inferior<manzanas[i,6] & evaldiario$Longitud.Superior>manzanas[i,6]))
+  
+  print(paste0(i,"/",length(dgridmanzanas)," ","="," ",round(i/length(dgridmanzanas)*100,1),"%"))
+}
+
+
+##Clasificación de base manzanas (grilla mensual)
+mgridmanzanas<-array(0,dim(manzanas)[1])
+for(i in 1:length(mgridmanzanas)){
+  mgridmanzanas[i]<-ifelse(length(which(evalmensual$Latitud.Inferior<manzanas[i,7] & evalmensual$Latitud.Superior>manzanas[i,7]
+                                      & evalmensual$Longitud.Inferior<manzanas[i,6] & evalmensual$Longitud.Superior>manzanas[i,6]))==0,
+                         NA,which(evalmensual$Latitud.Inferior<manzanas[i,7] & evalmensual$Latitud.Superior>manzanas[i,7]
+                                  & evalmensual$Longitud.Inferior<manzanas[i,6] & evalmensual$Longitud.Superior>manzanas[i,6]))
+  
+  print(paste0(i,"/",length(mgridmanzanas)," ","="," ",round(i/length(mgridmanzanas)*100,1),"%"))
+}
+
+dgridmanzanas<-as.data.frame(dgridmanzanas)
+mgridmanzanas<-as.data.frame(mgridmanzanas)
+colnames(dgridmanzanas)<-"dgrid"
+colnames(mgridmanzanas)<-"mgrid"
+manzanas<-cbind(manzanas,dgridmanzanas,mgridmanzanas)
+summary(manzanas)
+
+dmanzanas<-aggregate(.~dgrid,data=manzanas,sum)
+mmanzanas<-aggregate(.~mgrid,data=manzanas,sum)
+dmanzanas<-dmanzanas[,c(1:6)]
+mmanzanas<-mmanzanas[,c(1:6)]
+
+colnames(dmanzanas)<-c('dgrid','viviendas_count_d','hogares_count_d','personas_count_d',
+                       'comercial_count_d','lotes_count_d')
+colnames(mmanzanas)<-c('mgrid','viviendas_count_m','hogares_count_m','personas_count_m',
+                       'comercial_count_m','lotes_count_m')
+
+dmanzanas<-dmanzanas[-which(is.na(dmanzanas$dgrid==T)),]
+mmanzanas<-mmanzanas[-which(is.na(mmanzanas$mgrid==T)),]
+dmanzanas$dgrid<-as.integer(as.character(dmanzanas$dgrid))
+mmanzanas$mgrid<-as.integer(as.character(mmanzanas$mgrid))
+
+Month_grid<-left_join(Month_grid,mmanzanas,by="mgrid")
+Day_grid<-left_join(Day_grid,dmanzanas,by="dgrid")
+
+
+###Expo bases
 write.csv(Day_grid,"basediario.csv",row.names = F)
 write.csv(Month_grid,"basemensual.csv",row.names = F)
 
@@ -575,7 +636,7 @@ Day_grid$Eventos.Especiales<-as.factor(as.character(Day_grid$Eventos.Especiales)
 
 datos=na.omit(Day_grid[,c(3,4:6)]) #Sòlo Estacionales Rsquared: 0.02127
 datos=na.omit(Day_grid[,c(3,8:20)]) #Solo clima Rsquared: 0.002201
-datos=na.omit(Day_grid[,c(3,21:25)]) #Solo conteos grilla RSquared: 0.1826
+datos=na.omit(Day_grid[,c(3,21:32)]) #Solo conteos grilla RSquared: 0.1826
 datos=na.omit(Day_grid[,c(1,3)]) #Solo grilla RSquared: 0.3534
 
 datos=na.omit(Day_grid[,c(1,3:6)]) #Solo grilla RSquared: 0.3867
@@ -650,9 +711,3 @@ coef(mod_pen1)
 predp1=predict(mod_pen1,Xtest)
 rmsep1=sqrt(mean((ytest-round(predp1,0))^2))
 rmsep1
-
-
-rf<-cbind(test,pred_lm)
-rf<-rf[,c(3,26)]
-cor(rf)
-
