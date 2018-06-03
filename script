@@ -337,7 +337,6 @@ Day_grid<-left_join(Day_grid,dparques,by="dgrid")
 
 
 
-
 ##conteo estaciones
 estaciones<-read.csv("estaciones.csv", dec=",")
 estaciones<-estaciones[,c(2,8,9)]
@@ -401,9 +400,259 @@ Month_grid$Vel_Max_Raf_Viento<-ifelse(is.na(Month_grid$Vel_Max_Raf_Viento)==T,
 Day_grid$Vel_Max_Raf_Viento<-ifelse(is.na(Day_grid$Vel_Max_Raf_Viento)==T,
                                     0,Day_grid$Vel_Max_Raf_Viento)
 
+##conteo vias principales
+load("~/OneDrive - Universidad de Los Andes/DataSciencePr/R/Competencia Analytics/CoordenadasPricipales.RData")
+
+## Converting list to dataframe
+pacman::p_load(stringi,data.table)
+Res<-matrix(NA)
+
+via<-list()
+for(i in 1:117){
+  for(j in 1:length(Coord_Vias[[i]])){
+    if(is.null(Coord_Vias[[i]][[j]])==FALSE){
+      Res <- data.frame(Coord_Vias[[i]][[j]])
+    }}
+  via[[i]]<-rbind(Res)
+  Res<-list()
+}
+
+for(i in 1:117){
+ via[[i]][['NumVia']]=i 
+}
+vias<-rbindlist(via)
+vias<-as.data.frame(vias)
+
+
+##Clasificación de base vias principales (grilla diaria)
+dgridviaprinc<-array(0,dim(vias)[1])
+for(i in 1:length(dgridviaprinc)){
+  dgridviaprinc[i]<-ifelse(length(which(evaldiario$Latitud.Inferior<vias[i,2] & evaldiario$Latitud.Superior>vias[i,2]
+                                    & evaldiario$Longitud.Inferior<vias[i,1] & evaldiario$Longitud.Superior>vias[i,1]))==0,
+                       NA,which(evaldiario$Latitud.Inferior<vias[i,2] & evaldiario$Latitud.Superior>vias[i,2]
+                                & evaldiario$Longitud.Inferior<vias[i,1] & evaldiario$Longitud.Superior>vias[i,1]))
+  
+  print(paste0(i,"/",length(dgridviaprinc)," ","="," ",round(i/length(dgridviaprinc)*100,1),"%"))
+}
+
+
+##Clasificación de base vias principales (grilla mensual)
+mgridviaprinc<-array(0,dim(vias)[1])
+for(i in 1:length(mgridviaprinc)){
+  mgridviaprinc[i]<-ifelse(length(which(evalmensual$Latitud.Inferior<vias[i,2] & evalmensual$Latitud.Superior>vias[i,2]
+                                    & evalmensual$Longitud.Inferior<vias[i,1] & evalmensual$Longitud.Superior>vias[i,1]))==0,
+                       NA,which(evalmensual$Latitud.Inferior<vias[i,2] & evalmensual$Latitud.Superior>vias[i,2]
+                                & evalmensual$Longitud.Inferior<vias[i,1] & evalmensual$Longitud.Superior>vias[i,1]))
+  
+  print(paste0(i,"/",length(mgridviaprinc)," ","="," ",round(i/length(mgridviaprinc)*100,1),"%"))
+}
+
+dgridviaprinc<-as.data.frame(dgridviaprinc)
+mgridviaprinc<-as.data.frame(mgridviaprinc)
+colnames(dgridviaprinc)<-"dgrid"
+colnames(mgridviaprinc)<-"mgrid"
+vias<-cbind(vias,dgridviaprinc,mgridviaprinc)
+summary(vias)
+
+pacman::p_load(dplyr)
+dviaprinc<-count(vias,'dgrid')
+mviaprinc<-count(vias,'mgrid')
+
+colnames(dvias)<-c('dgrid','viasprincipales_count_d')
+colnames(mvias)<-c('mgrid','viasprincipales_count_m')
+
+dvias<-dvias[-which(is.na(dvias$dgrid==T)),]
+mvias<-mvias[-which(is.na(mvias$mgrid==T)),]
+
+Month_grid<-left_join(Month_grid,mvias,by="mgrid")
+Day_grid<-left_join(Day_grid,dvias,by="dgrid")
+
+
+##conteo vias secundarias
+load("~/OneDrive - Universidad de Los Andes/DataSciencePr/R/Competencia Analytics/CoordenadasSecundarias.RData")
+
+## Converting list to dataframe
+pacman::p_load(stringi,data.table)
+Res<-matrix(NA)
+
+via<-list()
+for(i in 1:126713){
+  for(j in 1:length(Coord_Vias[[i]])){
+    if(is.null(Coord_Vias[[i]][[j]])==FALSE){
+      Res <- data.frame(Coord_Vias[[i]][[j]])
+    }}
+  via[[i]]<-rbind(Res)
+  Res<-list()
+}
+
+for(i in 1:126713){
+  via[[i]][['NumVia']]=i 
+}
+viasec<-rbindlist(via)
+viasec<-as.data.frame(viasec)
+
+##Clasificación de base vias principales (grilla diaria)
+dgridviasec<-array(0,dim(viasec)[1])
+for(i in 1:length(dgridviasec)){
+  dgridviasec[i]<-ifelse(length(which(evaldiario$Latitud.Inferior<viasec[i,2] & evaldiario$Latitud.Superior>viasec[i,2]
+                                        & evaldiario$Longitud.Inferior<viasec[i,1] & evaldiario$Longitud.Superior>viasec[i,1]))==0,
+                           NA,which(evaldiario$Latitud.Inferior<viasec[i,2] & evaldiario$Latitud.Superior>viasec[i,2]
+                                    & evaldiario$Longitud.Inferior<viasec[i,1] & evaldiario$Longitud.Superior>viasec[i,1]))
+  
+  print(paste0(i,"/",length(dgridviasec)," ","="," ",round(i/length(dgridviasec)*100,1),"%"))
+}
+
+
+##Clasificación de base vias secundarias (grilla mensual)
+mgridviasec<-array(0,dim(viasec)[1])
+for(i in 1:length(mgridviasec)){
+  mgridviasec[i]<-ifelse(length(which(evalmensual$Latitud.Inferior<viasec[i,2] & evalmensual$Latitud.Superior>viasec[i,2]
+                                        & evalmensual$Longitud.Inferior<viasec[i,1] & evalmensual$Longitud.Superior>viasec[i,1]))==0,
+                           NA,which(evalmensual$Latitud.Inferior<viasec[i,2] & evalmensual$Latitud.Superior>viasec[i,2]
+                                    & evalmensual$Longitud.Inferior<viasec[i,1] & evalmensual$Longitud.Superior>viasec[i,1]))
+  
+  print(paste0(i,"/",length(mgridviasec)," ","="," ",round(i/length(mgridviasec)*100,1),"%"))
+}
+
+dgridviasec<-as.data.frame(dgridviasec)
+mgridviasec<-as.data.frame(mgridviasec)
+colnames(dgridviasec)<-"dgrid"
+colnames(mgridviasec)<-"mgrid"
+viasec<-cbind(viasec,dgridviasec,mgridviasec)
+summary(viasec)
+
+pacman::p_load(dplyr)
+dviasec<-count(vias,'dgrid')
+mviasec<-count(vias,'mgrid')
+
+colnames(dviasec)<-c('dgrid','viassecundarias_count_d')
+colnames(mviasec)<-c('mgrid','viassecundarias_count_m')
+
+dviasec<-dviasec[-which(is.na(dviasec$dgrid==T)),]
+mviasec<-mviasec[-which(is.na(mviasec$mgrid==T)),]
+
+Month_grid<-left_join(Month_grid,mviasec,by="mgrid")
+Day_grid<-left_join(Day_grid,dviasec,by="dgrid")
+
 
 
 write.csv(Day_grid,"basediario.csv",row.names = F)
 write.csv(Month_grid,"basemensual.csv",row.names = F)
 
+
+#####
+
+datos<-read.csv("basediario.csv")
+Day_grid<-datos
+Day_grid$Fecha<-as.Date(as.character(Day_grid$Fecha),'%Y-%m-%d')
+Day_grid$dgrid<-as.factor(as.character(Day_grid$dgrid))
+for(i in 17:20){Day_grid[,i]<-as.factor(as.character(Day_grid[,i]))}
+Day_grid$Eventos.Especiales<-ifelse(Day_grid$Eventos.Especiales=="No","No","Si")
+
+Day_grid$Eventos.Especiales<-as.factor(as.character(Day_grid$Eventos.Especiales))
+###Correlacion de variables (filtering)
+# pacman::p_load(caret)
+# 
+# nearZeroVar(datos[,c(2,6:10)])
+# correlations <- cor(datos[,c(2,6:10)])
+# dim(correlations)
+# correlations[1:4, 1:4]
+# pacman::p_load(corrplot)
+# par(mfrow=c(1,1))
+# corrplot(correlations, order = "hclust",tl.cex = 0.55) #Grafico de correlaciones ordenado por clustering jerarquico
+# 
+# ###Dependencias lineales
+# comboInfo <- findLinearCombos(datos[,c(2,6:10)])
+# comboInfo
+# names(datos)[comboInfo$remove]
+# datos<-datos[,-comboInfo$remove] #remover dependencias lineales restantes
+# testdata<-testdata[,-comboInfo$remove]
+
+# 
+# 
+
+#Muestra de entrenamiento y de validacion
+
+datos=na.omit(Day_grid[,c(3,4:6)]) #Sòlo Estacionales Rsquared: 0.02127
+datos=na.omit(Day_grid[,c(3,8:20)]) #Solo clima Rsquared: 0.002201
+datos=na.omit(Day_grid[,c(3,21:25)]) #Solo conteos grilla RSquared: 0.1826
+datos=na.omit(Day_grid[,c(1,3)]) #Solo grilla RSquared: 0.3534
+
+datos=na.omit(Day_grid[,c(1,3:6)]) #Solo grilla RSquared: 0.3867
+
+set.seed(2018)
+n1=sample(seq(1:dim(datos)[1]),dim(datos)[1]-2000)
+train=datos[n1,]
+test=datos[-n1,]
+
+##lm
+
+mod1<-lm(accidentes~.,train)
+summary(mod1)
+pred_lm=predict(mod1,test)
+
+rmselm=sqrt(mean((round(pred_lm,0)-test$accidentes)^2))
+rmselm
+
+
+##glm
+
+mod1<-glm(accidentes~.,train,family = 'poisson')
+summary(mod1)
+pred_lm=predict(mod1,test)
+
+rmselm=sqrt(mean((round(pred_lm,0)-test$accidentes)^2))
+rmselm
+
+
+
+#random forest
+
+pacman::p_load(randomForest)
+
+rf.mash=randomForest(accidentes~.,train,mtry=4)
+
+rf.mash
+
+imp_rf=importance(rf.mash)
+imp_rf
+varImpPlot(rf.mash)
+
+pred_rf=predict(rf.mash,test)
+
+rmserf=sqrt(mean((pred_rf-test$accidentes)^2))
+rmserf
+
+
+#5. Ahora con penalizacion en norma 1 (LASSO)
+
+pacman::p_load(glmnet)
+
+par(mfrow=c(1,1))
+Xtestdata<-as.matrix(testdata)
+X=model.matrix(accidentes~.,train)[,-1]
+Xtest=model.matrix(accidentes~.,test)[,-1]
+
+y=train$accidentes
+ytest=test$accidentes
+
+mod1=glmnet(X,y,alpha=1,family='poisson')
+plot(mod1)
+
+
+cvmod1=cv.glmnet(X,y,alpha=1)
+cvmod1$lambda.min
+plot(cvmod1)
+
+mod_pen1=glmnet(X,y,alpha=1,lambda=cvmod1$lambda.min,family='poisson')
+coef(mod_pen1)
+
+predp1=predict(mod_pen1,Xtest)
+rmsep1=sqrt(mean((ytest-round(predp1,0))^2))
+rmsep1
+
+
+rf<-cbind(test,pred_lm)
+rf<-rf[,c(3,26)]
+cor(rf)
 
