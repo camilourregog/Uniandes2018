@@ -595,22 +595,81 @@ mmanzanas$mgrid<-as.integer(as.character(mmanzanas$mgrid))
 Month_grid<-left_join(Month_grid,mmanzanas,by="mgrid")
 Day_grid<-left_join(Day_grid,dmanzanas,by="dgrid")
 
+###Variable pico y placa
+Day_grid$ParImpar<-Day_grid$DiaMes %% 2
+
+Day_grid$PicoYPlaca<-ifelse(Day_grid$Clas.Final=="Sabado" | Day_grid$Clas.Final=="FestivoEntreSemana" |
+Day_grid$Clas.Final=="DomingoFestivo","Todos",ifelse(Day_grid$ParImpar==0,"SoloImpares","SoloPares"))
+                                                                                       
+Day_grid[which(Day_grid$Fecha>="2014-12-26"),34]="Todos"
+Day_grid[which(Day_grid$Fecha<="2014-01-05"),34]="Todos"
+Day_grid[which(Day_grid$Fecha=="2014-02-06"),5]="Bajo Trafico"
+Day_grid<-Day_grid[,-33]
+Day_grid$PicoYPlaca<-as.factor(Day_grid$PicoYPlaca)
+
+
+Month_grid$ParImpar<-Month_grid$DiaMes %% 2
+
+Month_grid$PicoYPlaca<-ifelse(Month_grid$Clas.Final=="Sabado" | Month_grid$Clas.Final=="FestivoEntreSemana" |
+                                Month_grid$Clas.Final=="DomingoFestivo","Todos",ifelse(Month_grid$ParImpar==0,"SoloImpares","SoloPares"))
+
+Month_grid[which(Month_grid$Fecha>="2014-12-26"),34]="Todos"
+Month_grid[which(Month_grid$Fecha<="2014-01-05"),34]="Todos"
+Month_grid[which(Month_grid$Fecha=="2014-02-06"),5]="Bajo Trafico"
+Month_grid<-Month_grid[,-33]
+Month_grid$PicoYPlaca<-as.factor(Month_grid$PicoYPlaca)
+
+
 
 ###Expo bases
 write.csv(Day_grid,"basediario.csv",row.names = F)
 write.csv(Month_grid,"basemensual.csv",row.names = F)
 
 
+##Agregar información de conteos de grillas en bases de evaluación
+datosdiario<-read.csv("basediario.csv",header=T,sep=",",dec=",")
+datosmensual<-read.csv("basemensual.csv",header=T,sep=",",dec=",")
+evalmensual<-read.csv("evalmensual.csv",header=T,sep=";",dec=",")
+evaldiario<-read.csv("evaldiario.csv",header=T,sep=";",dec=",")
+
+
+datosdiario<-datosdiario[,c(1,21:32)]
+datosmensual<-datosmensual[,c(1,21:32)]
+
+library(dplyr)
+evaldiario1<-left_join(evaldiario,datosdiario,"dgrid")
+evaldiario1<-unique(evaldiario1)
+
+evalmensual1<-left_join(evalmensual,datosmensual,"mgrid")
+evalmensual1<-unique(evalmensual1)
+
+
+write.csv(evaldiario1,"evaldiariocount.csv",row.names = F)
+write.csv(evalmensual1,"evalmensualcount.csv",row.names = F)
 #####
 
 datos<-read.csv("basediario.csv")
 Day_grid<-datos
 Day_grid$Fecha<-as.Date(as.character(Day_grid$Fecha),'%Y-%m-%d')
+Day_grid<-Day_grid[-which(Day_grid$dgrid==2 | Day_grid$dgrid==54),]
 Day_grid$dgrid<-as.factor(as.character(Day_grid$dgrid))
 for(i in 17:20){Day_grid[,i]<-as.factor(as.character(Day_grid[,i]))}
 Day_grid$Eventos.Especiales<-ifelse(Day_grid$Eventos.Especiales=="No","No","Si")
 
 Day_grid$Eventos.Especiales<-as.factor(as.character(Day_grid$Eventos.Especiales))
+
+datos<-Day_grid
+
+
+datos<-read.csv("basemensual.csv")
+Month_grid<-datos
+Month_grid$Fecha<-as.Date(as.character(Month_grid$Fecha),'%Y-%m-%d')
+Month_grid$mgrid<-as.factor(as.character(Month_grid$mgrid))
+for(i in 17:20){Month_grid[,i]<-as.factor(as.character(Month_grid[,i]))}
+Month_grid$Eventos.Especiales<-ifelse(Month_grid$Eventos.Especiales=="No","No","Si")
+
+Month_grid$Eventos.Especiales<-as.factor(as.character(Month_grid$Eventos.Especiales))
+datos<-Month_grid
 ###Correlacion de variables (filtering)
 # pacman::p_load(caret)
 # 
@@ -634,21 +693,71 @@ Day_grid$Eventos.Especiales<-as.factor(as.character(Day_grid$Eventos.Especiales)
 
 #Muestra de entrenamiento y de validacion
 
+
+
+#Muestreo Estratificado
+
+# pacman::p_load(sampling,dplyr)
+# datos=filter(datos,(dgrid !=2 | dgrid!=54))
+# table(datos$dgrid)
+# evaldiario3=filter(datos,(dgrid ==2 | dgrid==54))
+# 
+# mh=c(round(cbind(table(evaldiario2$dgrid))*0.15))
+# mh=mh[which(mh!=0)]
+# evaldiario2$dgrid<-factor(evaldiario2$dgrid)
+# 
+# Estratos <- strata(evaldiario2, stratanames = c("dgrid"), size = mh, method = "srswor" )
+# datos.muestreado <- getdata(datos, Estratos )
+# datos_Muestra=dplyr::select(datos.muestreado,c(names(datos)))
+# 
+# Data_Test=rbind(datos_Muestra,evaldiario3)
+# table(Data_Test$dgrid)
+# 
+# Data_Train=setdiff(datos, Data_Test)
+# Data_Train=rbind(Data_Train,evaldiario3)
+# table(Data_Train$dgrid)
+# 
+# train=Data_Train
+# test=Data_Test
+# 
+# rm(evaldiario2,evaldiario3,Data_Test,Data_Train,datos_Muestra,datos.muestreado)
+
+datos=na.omit(datos)
 datos=na.omit(Day_grid[,c(3,4:6)]) #Sòlo Estacionales Rsquared: 0.02127
 datos=na.omit(Day_grid[,c(3,8:20)]) #Solo clima Rsquared: 0.002201
 datos=na.omit(Day_grid[,c(3,21:32)]) #Solo conteos grilla RSquared: 0.1826
 datos=na.omit(Day_grid[,c(1,3)]) #Solo grilla RSquared: 0.3534
 
-datos=na.omit(Day_grid[,c(1,3:6)]) #Solo grilla RSquared: 0.3867
+datos=na.omit(Day_grid[,c(1,3:6)]) #grilla+estacionalidad RSquared: 0.3867
+datos=na.omit(Day_grid[,c(3:6,21:32)]) #estacionalidad+conteos RSquared: 0.2801
+datos=na.omit(Day_grid[,c(1,3:6,21:32)]) #grilla+estacionalidad RSquared: 0.3867
+datos=na.omit(Day_grid[,c(1,3:6,8:32)]) #grilla+interaccion clima vs conteo RSquared: 0.3867
 
+datos=na.omit(Month_grid[,c(3,4:6)]) #Sòlo Estacionales Rsquared: 0.006763
+datos=na.omit(Month_grid[,c(3,8:20)]) #Solo clima Rsquared: 4.594e-05
+datos=na.omit(Month_grid[,c(3,21:32)]) #Solo conteos grilla RSquared: 0.05118
+datos=na.omit(Month_grid[,c(1,3)]) #Solo grilla RSquared: 0.01138
+datos=na.omit(Month_grid[,c(1,3:6)]) #grilla+estacionalidad RSquared: 0.02039
+datos=na.omit(Month_grid[,c(3:6,21:32)]) #estacionalidad+conteos RSquared: 0.0603
+datos=na.omit(Month_grid[,c(1,3:6,8:32)]) #grilla+interaccion clima vs conteo RSquared: 0.3867
+#######
 set.seed(2018)
 n1=sample(seq(1:dim(datos)[1]),dim(datos)[1]-2000)
 train=datos[n1,]
 test=datos[-n1,]
 
+varestacionales<-Day_grid[,4:6]
+varclima<-Day_grid[,8:20]
+varconteos<-Day_grid[,21:32]
+
 ##lm
 
-mod1<-lm(accidentes~.,train)
+mod1<-lm(accidentes~dgrid+Clas.Final+TemporadaTrafico+Eventos.Especiales+PicoYPlaca+
+           T_Med*(semaf_count_d+viasprincipales_count_d+viassecudarias_count_d)+
+           Vel_Max_S_Viento*(semaf_count_d+viasprincipales_count_d+viassecudarias_count_d)+
+           Ind_Tormenta*(semaf_count_d+viasprincipales_count_d+viassecudarias_count_d)
+           -semaf_count_d-viasprincipales_count_d-
+           viassecudarias_count_d,train)
 summary(mod1)
 pred_lm=predict(mod1,test)
 
@@ -658,8 +767,13 @@ rmselm
 
 ##glm
 
-mod1<-glm(accidentes~.,train,family = 'poisson')
+mod1<-glm(accidentes~dgrid+Clas.Final+TemporadaTrafico+Eventos.Especiales+PicoYPlaca+
+            T_Med*(semaf_count_d+viasprincipales_count_d+viassecudarias_count_d)+
+            Vel_Max_S_Viento*(semaf_count_d+viasprincipales_count_d+viassecudarias_count_d)+
+            Ind_Tormenta*(semaf_count_d+viasprincipales_count_d+viassecudarias_count_d)-
+            semaf_count_d-viasprincipales_count_d-viassecudarias_count_d,train,family = 'poisson')
 summary(mod1)
+
 pred_lm=predict(mod1,test)
 
 rmselm=sqrt(mean((round(pred_lm,0)-test$accidentes)^2))
@@ -671,7 +785,11 @@ rmselm
 
 pacman::p_load(randomForest)
 
-rf.mash=randomForest(accidentes~.,train,mtry=4)
+rf.mash=randomForest(accidentes~dgrid+Clas.Final+TemporadaTrafico+Eventos.Especiales+PicoYPlaca+
+                       +T_Med*Hum_Rel_Med*(semaf_count_d+viasprincipales_count_d+viassecudarias_count_d)
+                       +Vel_Max_S_Viento*Ind_Lluvia*(semaf_count_d+viasprincipales_count_d+viassecudarias_count_d)
+                       +Ind_Tormenta*Vis_Med*(semaf_count_d+viasprincipales_count_d+viassecudarias_count_d)
+                       -semaf_count_d-viasprincipales_count_d-viassecudarias_count_d,train,mtry=2)
 
 rf.mash
 
@@ -681,8 +799,65 @@ varImpPlot(rf.mash)
 
 pred_rf=predict(rf.mash,test)
 
-rmserf=sqrt(mean((pred_rf-test$accidentes)^2))
+rmserf=sqrt(mean((round(pred_rf)-test$accidentes)^2))
 rmserf
+
+library(gbm)
+mod<-gbm(accidentes~semaf_count_d+comercial_count_d
+         +viasprincipales_count_d+Ind_Lluvia+dgrid+dgrid*Clas.Final+
+           dgrid*TemporadaTrafico+PicoYPlaca+Clas.Final+TemporadaTrafico+
+           Eventos.Especiales+Ind_Tormenta,
+         data=train,distribution="gaussian",n.trees=5000,
+         interaction.depth=6,shrinkage=0.001)
+summary(mod)
+pred<-predict(mod,newdata=test,n.trees = 5000,type="response")
+rmse<-sqrt(mean((round(pred)-test$accidentes)^2))
+rmse
+
+#gbm
+
+ntrees<-seq(100,5000,500)
+shrin<-seq(0.01,5,0.5)
+cvmseboo<-matrix(0,length(ntrees),length(shrin))
+for (i in 1:length(ntrees)){
+  
+  for(j in 1:length(shrin)){
+    m2=gbm(accidentes~dgrid+Clas.Final+TemporadaTrafico+Eventos.Especiales+PicoYPlaca+
+           +T_Med*Hum_Rel_Med*(semaf_count_d+viasprincipales_count_d+viassecudarias_count_d)
+           +Vel_Max_S_Viento*Ind_Lluvia*(semaf_count_d+viasprincipales_count_d+viassecudarias_count_d)
+           +Ind_Tormenta*Vis_Med*(semaf_count_d+viasprincipales_count_d+viassecudarias_count_d)
+           -semaf_count_d-viasprincipales_count_d-viassecudarias_count_d,data=train,n.trees=ntrees[i],shrinkage=shrin[j],interaction.depth=4,distribution="gaussian")
+    
+    predict_gboost=predict(m2,newdata=test,n.trees=ntrees[i])
+    
+    rmse_gboost=sqrt(mean((round(predict_gboost)-test$accidentes)^2))
+    cvmseboo[i,j]<-rmse_gboost
+    print(paste0("j=",j))
+  }
+  print(paste0("i=",i))
+}
+a=which.min(cvmseboo)
+cvmseboo[a]
+param=function(a){ ##parametros de calibracion minimo MSE Test CV
+  lambdamse=ceiling(a/length(ntrees))
+  ntreesmse=a%%length(ntrees)
+  ntreesmse=ifelse(ntreesmse==0,length(shrin),ntreesmse)
+  return(c("ntrees"=round(ntrees[ntreesmse],0),"lambda"=shrin[lambdamse]))
+}
+param(a)
+
+m2=gbm(accidentes~dgrid+Clas.Final+TemporadaTrafico+Eventos.Especiales
+       +T_Med*Hum_Rel_Med*(semaf_count_d+viasprincipales_count_d+viassecudarias_count_d)
+       +Vel_Max_S_Viento*Ind_Lluvia*(semaf_count_d+viasprincipales_count_d+viassecudarias_count_d)
+       +Ind_Tormenta*Vis_Med*(semaf_count_d+viasprincipales_count_d+viassecudarias_count_d)
+       -semaf_count_d-viasprincipales_count_d-viassecudarias_count_d,data=train,n.trees=4100,shrinkage=0.01,interaction.depth=4,distribution="gaussian")
+
+predict_gboost=predict(m2,newdata=test,n.trees=4100,type="response")
+
+rmse_gboost=sqrt(mean((round(predict_gboost)-test$accidentes)^2))
+rmse_gboost
+
+predboostgbm<-predict(m2,testdata,n.trees = 201)
 
 
 #5. Ahora con penalizacion en norma 1 (LASSO)
@@ -697,7 +872,7 @@ Xtest=model.matrix(accidentes~.,test)[,-1]
 y=train$accidentes
 ytest=test$accidentes
 
-mod1=glmnet(X,y,alpha=1,family='poisson')
+mod1=glmnet(X,y,alpha=1,family='gaussian')
 plot(mod1)
 
 
@@ -705,9 +880,11 @@ cvmod1=cv.glmnet(X,y,alpha=1)
 cvmod1$lambda.min
 plot(cvmod1)
 
-mod_pen1=glmnet(X,y,alpha=1,lambda=cvmod1$lambda.min,family='poisson')
+mod_pen1=glmnet(X,y,alpha=1,lambda=cvmod1$lambda.min,family='gaussian')
 coef(mod_pen1)
 
 predp1=predict(mod_pen1,Xtest)
 rmsep1=sqrt(mean((ytest-round(predp1,0))^2))
 rmsep1
+mod_pen1
+
